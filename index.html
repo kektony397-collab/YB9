@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -6,10 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bike Advance</title>
+    <meta name="description" content="An advanced, futuristic bike monitoring and tracking PWA with real-time GPS, fuel management, and a comprehensive bike database." />
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="theme-color" content="#1e293b">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
     <link rel="mask-icon" href="/mask-icon.svg" color="#FFFFFF">
+    <!-- The manifest link will be automatically injected by vite-plugin-pwa -->
     <style>
       body {
         overscroll-behavior-y: contain;
@@ -20,7 +21,10 @@
   "imports": {
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "vite": "https://aistudiocdn.com/vite@^7.1.5",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
+    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.0.3"
   }
 }
 </script>

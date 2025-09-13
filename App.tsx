@@ -1,5 +1,6 @@
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+// @ts-ignore - This is a virtual module provided by vite-plugin-pwa
+import { registerSW } from 'virtual:pwa-register';
 import { ActiveView } from './types';
 import { DashboardIcon, MotorcycleIcon, FuelIcon, SettingsIcon, UserCircleIcon } from './components/Icons';
 import Dashboard from './components/Dashboard';
@@ -51,6 +52,12 @@ const BottomNav: React.FC<{ activeView: ActiveView; setActiveView: (view: Active
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+
+  useEffect(() => {
+    // Register the service worker for PWA functionality.
+    // It will automatically update on new deployments.
+    registerSW({ immediate: true });
+  }, []);
 
   const renderView = useCallback(() => {
     switch (activeView) {
