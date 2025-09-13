@@ -23,3 +23,14 @@ export interface Route {
   endTime: number;
   path: Coordinates[];
 }
+
+// For encrypted data storage
+export interface EncryptedObject {
+  iv: string; // Base64 encoded Initialization Vector
+  data: string; // Base64 encoded encrypted data
+}
+
+export interface EncryptedRoute {
+  id: string; // Keep ID unencrypted for querying
+  encryptedData: EncryptedObject;
+}

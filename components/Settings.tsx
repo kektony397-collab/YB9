@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React from 'react';
+import { useAppStore } from '../store/store';
 
 const ToggleSwitch: React.FC<{ label: string; enabled: boolean; setEnabled: (enabled: boolean) => void }> = ({ label, enabled, setEnabled }) => {
   return (
@@ -18,10 +18,12 @@ const ToggleSwitch: React.FC<{ label: string; enabled: boolean; setEnabled: (ena
 };
 
 export default function Settings() {
-  const [darkMode, setDarkMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [gpsHighAccuracy, setGpsHighAccuracy] = useState(false);
-  const [metricUnits, setMetricUnits] = useState(true);
+  const { 
+    darkMode, setDarkMode,
+    notifications, setNotifications,
+    gpsHighAccuracy, setGpsHighAccuracy,
+    metricUnits, setMetricUnits
+  } = useAppStore();
 
   return (
     <div className="space-y-6">

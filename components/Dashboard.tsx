@@ -1,7 +1,7 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { FuelIcon } from './Icons';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Coordinates, Route } from '../types';
+import { useAppStore } from '../store/store';
+import { addRoute, getAllRoutes } from '../services/db';
 
 const useMockGps = () => {
   const [speed, setSpeed] = useState(0);
@@ -28,7 +28,6 @@ const useMockGps = () => {
 
 const Speedometer: React.FC<{ speed: number }> = ({ speed }) => {
   const percentage = Math.min(100, (speed / 220) * 100);
-  const rotation = (percentage / 100) * 270 - 135; // -135 to 135 degrees
 
   return (
     <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center">
@@ -57,7 +56,6 @@ const Speedometer: React.FC<{ speed: number }> = ({ speed }) => {
   );
 };
 
-
 const StatCard: React.FC<{ title: string; value: string; unit: string }> = ({ title, value, unit }) => (
   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex-1 min-w-[120px]">
     <p className="text-sm text-slate-400 font-medium">{title}</p>
@@ -79,11 +77,45 @@ const FuelIndicator: React.FC<{ level: number }> = ({ level }) => (
   </div>
 );
 
+// Custom hook for managing the Screen Wake Lock API
+const useWakeLock = () => {
+  const wakeLock = useRef<WakeLockSentinel | null>(null);
+
+  const requestWakeLock = useCallback(async () => {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock.current = await navigator.wakeLock.request('screen');
+      } catch (err: any) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLock.current) {
+      await wakeLock.current.release();
+      wakeLock.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Ensure wake lock is released on component unmount
+      releaseWakeLock();
+    };
+  }, [releaseWakeLock]);
+
+  return { requestWakeLock, releaseWakeLock };
+};
+
 export default function Dashboard() {
   const { speed, rpm } = useMockGps();
   const [fuel] = useState(78);
   const [range] = useState(214);
   const [trip, setTrip] = useState(42.8);
+  
+  // Zustand state
+  const gpsHighAccuracy = useAppStore((state) => state.gpsHighAccuracy);
 
   // GPS Tracking State
   const [isTracking, setIsTracking] = useState(false);
@@ -92,6 +124,7 @@ export default function Dashboard() {
   const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
   const [error, setError] = useState<string | null>(null);
   const watchId = useRef<number | null>(null);
+  const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   useEffect(() => {
     if (speed > 0) {
@@ -102,16 +135,13 @@ export default function Dashboard() {
     }
   }, [speed]);
 
-  // Load past routes from localStorage on mount
+  // Load past routes from Dexie on mount
   useEffect(() => {
-    try {
-      const savedRoutes = localStorage.getItem('bike-advance-routes');
-      if (savedRoutes) {
-        setPastRoutes(JSON.parse(savedRoutes));
-      }
-    } catch (e) {
-      console.error("Failed to parse routes from localStorage", e);
-    }
+    const fetchRoutes = async () => {
+      const routes = await getAllRoutes();
+      setPastRoutes(routes);
+    };
+    fetchRoutes();
   }, []);
 
   const handleStartTracking = () => {
@@ -119,7 +149,7 @@ export default function Dashboard() {
       setError('Geolocation is not supported by your browser.');
       return;
     }
-
+    requestWakeLock();
     setError(null);
     setCurrentRoute([]);
     setIsTracking(true);
@@ -135,19 +165,21 @@ export default function Dashboard() {
         setCurrentRoute((prevRoute) => [...prevRoute, newPoint]);
       },
       (err) => {
-        setError(err.message);
+        setError(`GPS Error: ${err.message}`);
         setIsTracking(false);
+        releaseWakeLock();
       },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+      { enableHighAccuracy: gpsHighAccuracy, timeout: 20000, maximumAge: 1000 }
     );
   };
 
-  const handleStopTracking = () => {
+  const handleStopTracking = async () => {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
     }
     setIsTracking(false);
+    releaseWakeLock();
 
     if (currentRoute.length > 1) {
       const newRoute: Route = {
@@ -156,9 +188,9 @@ export default function Dashboard() {
         endTime: currentRoute[currentRoute.length - 1].timestamp,
         path: currentRoute,
       };
-      const updatedRoutes = [newRoute, ...pastRoutes];
+      await addRoute(newRoute);
+      const updatedRoutes = await getAllRoutes(); // re-fetch to update UI
       setPastRoutes(updatedRoutes);
-      localStorage.setItem('bike-advance-routes', JSON.stringify(updatedRoutes));
     }
     setCurrentRoute([]);
   };
@@ -171,7 +203,6 @@ export default function Dashboard() {
     const seconds = totalSeconds % 60;
     return `${hours > 0 ? `${hours}h ` : ''}${minutes}m ${seconds}s`;
   };
-
 
   return (
     <div className="flex flex-col items-center gap-6 animate-fade-in">
@@ -213,7 +244,6 @@ export default function Dashboard() {
            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                <h4 className="text-md font-semibold text-slate-200 mb-2">Live Route</h4>
                <p className="text-sm text-sky-400">Points recorded: {currentRoute.length}</p>
-               {/* This is a placeholder for a map view */}
                <div className="mt-2 bg-slate-900/50 rounded-lg p-2 h-24 overflow-y-auto text-xs font-mono text-slate-300">
                   {currentRoute.length > 0 ? currentRoute.map(p => (
                       <div key={p.timestamp}>{`[${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}]`}</div>
